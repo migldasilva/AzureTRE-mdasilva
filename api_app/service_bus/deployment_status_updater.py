@@ -7,7 +7,6 @@ from pydantic import ValidationError, parse_obj_as
 
 from api.dependencies.database import get_db_client
 from api.routes.resource_helpers import get_timestamp
-from models.domain.resource import Output
 from db.repositories.resources_history import ResourceHistoryRepository
 from models.domain.request_action import RequestAction
 from db.repositories.resource_templates import ResourceTemplateRepository
@@ -103,8 +102,7 @@ class DeploymentStatusUpdater():
 
             current_step_index = 0
             for i, step in enumerate(operation.steps):
-                # TODO more simple condition
-                if step.id == message.stepId and step.resourceId == str(message.id):
+                if step.stepId == message.stepId:
                     step_to_update = step
                     current_step_index = i
                     if i == (len(operation.steps) - 1):
@@ -147,22 +145,19 @@ class DeploymentStatusUpdater():
 
                 # catch any errors in updating the resource - maybe Cosmos / schema invalid etc, and report them back to the op
                 try:
-                    # parent resource is always retrieved via cosmos, hence it is always with redacted sensitive values
-                    parent_resource = await self.resource_repo.get_resource_by_id(next_step.sourceTemplateResourceId)
                     resource_to_send = await update_resource_for_step(
                         operation_step=next_step,
                         resource_repo=self.resource_repo,
                         resource_template_repo=self.resource_template_repo,
                         resource_history_repo=self.resource_history_repo,
-                        root_resource=None,
-                        step_resource=parent_resource,
+                        primary_resource=await self.resource_repo.get_resource_by_id(operation.resourceId),  # need to get the resource again as it has been updated
                         resource_to_update_id=next_step.resourceId,
                         primary_action=operation.action,
                         user=operation.user)
 
                     # create + send the message
-                    logging.info(f"Sending next step in operation to deployment queue -> step_id: {next_step.templateStepId}, action: {next_step.resourceAction}")
-                    content = json.dumps(resource_to_send.get_resource_request_message_payload(operation_id=operation.id, step_id=next_step.id, action=next_step.resourceAction))
+                    logging.info(f"Sending next step in operation to deployment queue -> step_id: {next_step.stepId}, action: {next_step.resourceAction}")
+                    content = json.dumps(resource_to_send.get_resource_request_message_payload(operation_id=operation.id, step_id=next_step.stepId, action=next_step.resourceAction))
                     await send_deployment_message(content=content, correlation_id=operation.id, session_id=resource_to_send.id, action=next_step.resourceAction)
                 except Exception as e:
                     logging.exception("Unable to send update for resource in pipeline step")
@@ -196,12 +191,12 @@ class DeploymentStatusUpdater():
 
         if step.is_failure():
             operation.status = self.get_failure_status_for_action(operation.action)
-            operation.message = f"Multi step pipeline failed on step {step.templateStepId}"
+            operation.message = f"Multi step pipeline failed on step {step.stepId}"
 
             # pipeline failed - update the primary resource (from the main step) as failed too
             main_step = None
             for i, step in enumerate(operation.steps):
-                if step.templateStepId == "main":
+                if step.stepId == "main":
                     main_step = step
                     break
 
@@ -245,33 +240,7 @@ class DeploymentStatusUpdater():
 
         # although outputs are likely to be relevant when resources are moving to "deployed" status,
         # lets not limit when we update them and have the resource process make that decision.
-        # need to convert porter outputs to dict so boolean values are converted to bools, not strings
-        output_dict = self.convert_outputs_to_dict(message.outputs)
+        output_dict = {output.Name: output.Value.strip("'").strip('"') if isinstance(output.Value, str) else output.Value for output in message.outputs}
         resource["properties"].update(output_dict)
 
         return resource
-
-    def convert_outputs_to_dict(self, outputs_list: [Output]):
-        """
-        Convert a list of Porter outputs to a dictionary
-        """
-
-        result_dict = {}
-        for msg in outputs_list:
-            if msg.Value is None:
-                continue
-            name = msg.Name
-            value = msg.Value
-            obj_type = msg.Type
-
-            #
-            if obj_type == 'string' and isinstance(value, str):
-                value = value.strip("'").strip('"')
-            elif obj_type == 'boolean':
-                if isinstance(value, str):
-                    value = value.strip("'").strip('"')
-                value = (value.lower() == 'true')
-
-            result_dict[name] = value
-
-        return result_dict

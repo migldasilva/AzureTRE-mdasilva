@@ -96,6 +96,11 @@ resource "azurerm_monitor_diagnostic_setting" "mlflow" {
     content {
       category = log.value
       enabled  = contains(local.web_app_diagnostic_categories_enabled, log.value) ? true : false
+
+      retention_policy {
+        enabled = contains(local.web_app_diagnostic_categories_enabled, log.value) ? true : false
+        days    = 365
+      }
     }
   }
 }
@@ -124,11 +129,9 @@ resource "azurerm_private_endpoint" "mlflow" {
   }
 
   private_dns_zone_group {
-    name                 = module.terraform_azurerm_environment_configuration.private_links["privatelink.azurewebsites.net"]
+    name                 = "privatelink.azurewebsites.net"
     private_dns_zone_ids = [data.azurerm_private_dns_zone.azurewebsites.id]
   }
-
-  lifecycle { ignore_changes = [tags] }
 }
 
 resource "azurerm_key_vault_access_policy" "mlflow" {

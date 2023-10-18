@@ -23,5 +23,4 @@ cookiesecret=$(dd if=/dev/urandom bs=32 count=1 2>/dev/null | base64 | tr -d -- 
 --cookie-refresh 50m \
 --insecure-oidc-allow-unverified-email true \
 --oidc-groups-claim "roles" \
---oidc-email-claim "preferred_username" \
 --scope "openid offline_access ${AUDIENCE}/user_impersonation profile"

@@ -125,15 +125,9 @@
       }
     },
     {
-      "name": "arm_environment",
+      "name": "enable_airlock",
       "source": {
-        "env": "ARM_ENVIRONMENT"
-      }
-    },
-    {
-      "name": "azure_environment",
-      "source": {
-        "env": "AZURE_ENVIRONMENT"
+        "env": "ENABLE_AIRLOCK"
       }
     }
   ]

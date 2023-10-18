@@ -39,81 +39,76 @@ data "azurerm_route_table" "rt" {
 }
 
 data "azurerm_private_dns_zone" "azurewebsites" {
-  name                = module.terraform_azurerm_environment_configuration.private_links["privatelink.azurewebsites.net"]
+  name                = "privatelink.azurewebsites.net"
   resource_group_name = local.core_resource_group_name
 }
 
 data "azurerm_private_dns_zone" "filecore" {
-  name                = module.terraform_azurerm_environment_configuration.private_links["privatelink.file.core.windows.net"]
+  name                = "privatelink.file.core.windows.net"
   resource_group_name = local.core_resource_group_name
 }
 
 data "azurerm_private_dns_zone" "blobcore" {
-  name                = module.terraform_azurerm_environment_configuration.private_links["privatelink.blob.core.windows.net"]
+  name                = "privatelink.blob.core.windows.net"
   resource_group_name = local.core_resource_group_name
 }
 
 data "azurerm_private_dns_zone" "dfscore" {
-  name                = module.terraform_azurerm_environment_configuration.private_links["privatelink.dfs.core.windows.net"]
+  name                = "privatelink.dfs.core.windows.net"
   resource_group_name = local.core_resource_group_name
 }
 
 data "azurerm_private_dns_zone" "vaultcore" {
-  name                = module.terraform_azurerm_environment_configuration.private_links["privatelink.vaultcore.azure.net"]
+  name                = "privatelink.vaultcore.azure.net"
   resource_group_name = local.core_resource_group_name
 }
 
 data "azurerm_private_dns_zone" "azurecr" {
-  name                = module.terraform_azurerm_environment_configuration.private_links["privatelink.azurecr.io"]
+  name                = "privatelink.azurecr.io"
   resource_group_name = local.core_resource_group_name
 }
 
 data "azurerm_private_dns_zone" "azureml" {
-  name                = module.terraform_azurerm_environment_configuration.private_links["privatelink.api.azureml.ms"]
+  name                = "privatelink.api.azureml.ms"
   resource_group_name = local.core_resource_group_name
 }
 
 data "azurerm_private_dns_zone" "azuremlcert" {
-  name                = module.terraform_azurerm_environment_configuration.private_links["privatelink.cert.api.azureml.ms"]
+  name                = "privatelink.cert.api.azureml.ms"
   resource_group_name = local.core_resource_group_name
 }
 
 data "azurerm_private_dns_zone" "notebooks" {
-  name                = module.terraform_azurerm_environment_configuration.private_links["privatelink.notebooks.azure.net"]
+  name                = "privatelink.notebooks.azure.net"
   resource_group_name = local.core_resource_group_name
 }
 
 data "azurerm_private_dns_zone" "mysql" {
-  name                = module.terraform_azurerm_environment_configuration.private_links["privatelink.mysql.database.azure.com"]
+  name                = "privatelink.mysql.database.azure.com"
   resource_group_name = local.core_resource_group_name
 }
 
 data "azurerm_private_dns_zone" "postgres" {
-  name                = module.terraform_azurerm_environment_configuration.private_links["privatelink.postgres.database.azure.com"]
-  resource_group_name = local.core_resource_group_name
-}
-
-data "azurerm_public_ip" "app_gateway_ip" {
-  name                = "pip-agw-${var.tre_id}"
+  name                = "privatelink.postgres.database.azure.com"
   resource_group_name = local.core_resource_group_name
 }
 
 data "azurerm_private_dns_zone" "nexus" {
-  name                = "nexus-${data.azurerm_public_ip.app_gateway_ip.fqdn}"
+  name                = "nexus-${var.tre_id}.${var.location}.cloudapp.azure.com"
   resource_group_name = local.core_resource_group_name
 }
 
 data "azurerm_private_dns_zone" "health" {
-  name                = module.terraform_azurerm_environment_configuration.private_links["privatelink.azurehealthcareapis.com"]
+  name                = "privatelink.azurehealthcareapis.com"
   resource_group_name = local.core_resource_group_name
 }
 
 data "azurerm_private_dns_zone" "dicom" {
-  name                = module.terraform_azurerm_environment_configuration.private_links["privatelink.dicom.azurehealthcareapis.com"]
+  name                = "privatelink.dicom.azurehealthcareapis.com"
   resource_group_name = local.core_resource_group_name
 }
 
 data "azurerm_private_dns_zone" "databricks" {
-  name                = module.terraform_azurerm_environment_configuration.private_links["privatelink.azuredatabricks.net"]
+  name                = "privatelink.azuredatabricks.net"
   resource_group_name = local.core_resource_group_name
 }

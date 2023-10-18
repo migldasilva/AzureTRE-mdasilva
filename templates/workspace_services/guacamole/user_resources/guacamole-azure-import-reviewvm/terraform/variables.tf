@@ -1,25 +1,10 @@
-variable "workspace_id" {
-  type = string
-}
-variable "tre_id" {
-  type = string
-}
-variable "parent_service_id" {
-  type = string
-}
-variable "tre_resource_id" {
-  type = string
-}
-variable "image" {
-  type = string
-}
-variable "vm_size" {
-  type = string
-}
+variable "workspace_id" {}
+variable "tre_id" {}
+variable "parent_service_id" {}
+variable "tre_resource_id" {}
+variable "image" {}
+variable "vm_size" {}
 variable "image_gallery_id" {
-  type    = string
   default = ""
 }
-variable "airlock_request_sas_url" {
-  type = string
-}
+variable "airlock_request_sas_url" {}

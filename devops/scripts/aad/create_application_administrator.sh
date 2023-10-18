@@ -23,7 +23,7 @@ Options:
     -r,--reset-password         Optional, switch to automatically reset the password. Default 0
 
 USAGE
-    exit 2
+    exit 1
 }
 
 if ! command -v az &> /dev/null; then
@@ -38,7 +38,7 @@ declare grantAdminConsent=0
 declare resetPassword=0
 declare currentUserId=""
 declare spId=""
-declare msGraphUri=""
+declare msGraphUri="https://graph.microsoft.com/v1.0"
 declare appName=""
 declare applicationPermission="Application.ReadWrite.OwnedBy"
 
@@ -64,6 +64,7 @@ while [[ $# -gt 0 ]]; do
         *)
             echo "Invalid option: $1."
             show_usage
+            exit 2
         ;;
     esac
 done
@@ -82,7 +83,6 @@ if [[ -z "$appName" ]]; then
 fi
 appName="$appName Application Admin"
 currentUserId=$(az ad signed-in-user show --query 'id' --output tsv --only-show-errors)
-msGraphUri="$(az cloud show --query endpoints.microsoftGraphResourceId --output tsv)/v1.0"
 tenant=$(az rest -m get -u "${msGraphUri}/domains" -o json | jq -r '.value[] | select(.isDefault == true) | .id')
 
 echo -e "\e[96mCreating the Application Admin in the \"${tenant}\" Azure AD tenant.\e[0m"

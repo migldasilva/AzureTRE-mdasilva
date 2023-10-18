@@ -1,26 +1,11 @@
-variable "workspace_id" {
-  type = string
-}
-variable "tre_id" {
-  type = string
-}
-variable "id" {
-  type = string
-}
-variable "mgmt_resource_group_name" {
-  type = string
-}
-variable "mgmt_acr_name" {
-  type = string
-}
-variable "aad_authority_url" {
-  type = string
-}
+variable "workspace_id" {}
+variable "tre_id" {}
+variable "id" {}
+variable "mgmt_resource_group_name" {}
+variable "mgmt_acr_name" {}
 variable "gitea_storage_limit" {
   type        = number
   description = "Space allocated in GB for the Gitea data in Azure Files Share"
   default     = 100
 }
-variable "arm_environment" {
-  type = string
-}
+

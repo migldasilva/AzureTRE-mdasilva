@@ -6,6 +6,5 @@
     "pollingDelayMilliseconds": 10000,
     "treId": "my-tre",
     "debug": false,
-    "version": "0.0.0",
-    "activeDirectoryUri": ""
+    "version": "0.0.0"
 }

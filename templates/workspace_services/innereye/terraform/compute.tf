@@ -46,8 +46,6 @@ resource "azurerm_resource_group_template_deployment" "deploy_compute_cluster" {
   })
 
   deployment_mode = "Incremental"
-
-  lifecycle { ignore_changes = [tags] }
 }
 
 data "azurerm_container_registry" "aml" {

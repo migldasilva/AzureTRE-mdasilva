@@ -5,7 +5,7 @@ from azure.cosmos.aio import CosmosClient
 from pydantic import parse_obj_as
 
 from core import config
-from db.errors import DuplicateEntity, EntityDoesNotExist, EntityVersionExist, InvalidInput
+from db.errors import DuplicateEntity, EntityDoesNotExist, EntityVersionExist
 from db.repositories.base import BaseRepository
 from models.domain.resource import ResourceType
 from models.domain.resource_template import ResourceTemplate
@@ -95,12 +95,6 @@ class ResourceTemplateRepository(BaseRepository):
         else:
             return parse_obj_as(ResourceTemplate, templates[0])
 
-    async def get_all_template_versions(self, template_name: str) -> List[str]:
-        query = 'SELECT VALUE c.version FROM c where c.name = @template_name'
-        parameters = [{"name": "@template_name", "value": template_name}]
-        versions = await self.query(query=query, parameters=parameters)
-        return versions
-
     async def create_template(self, template_input: ResourceTemplateInCreate, resource_type: ResourceType, parent_service_name: str = "") -> Union[ResourceTemplate, UserResourceTemplate]:
         """
         creates a template based on the input (workspace and workspace-services template)
@@ -123,9 +117,7 @@ class ResourceTemplateRepository(BaseRepository):
             template["uiSchema"] = template_input.json_schema["uiSchema"]
 
         if "pipeline" in template_input.json_schema:
-            pipeline = template_input.json_schema["pipeline"]
-            self._validate_pipeline_has_unique_step_ids(pipeline)
-            template["pipeline"] = pipeline
+            template["pipeline"] = template_input.json_schema["pipeline"]
 
         if "allOf" in template_input.json_schema:
             template["allOf"] = template_input.json_schema["allOf"]
@@ -160,22 +152,3 @@ class ResourceTemplateRepository(BaseRepository):
                 template_input.current = True  # For first time registration, template is always marked current
             created_template = await self.create_template(template_input, resource_type, workspace_service_template_name)
             return self.enrich_template(created_template)
-
-    def _validate_pipeline_has_unique_step_ids(self, pipeline):
-        if pipeline is None:
-            return
-
-        step_ids = []
-        for action in pipeline:
-            num_of_main_steps = 0
-            for step in pipeline[action]:
-                step_id = step["stepId"]
-
-                if step_id == "main":
-                    num_of_main_steps += 1
-
-                if step_id in step_ids or num_of_main_steps > 1:
-                    raise InvalidInput(f"Invalid template - duplicate stepIds are not allowed. stepId: {step_id}")
-
-                if step_id != "main":
-                    step_ids.append(step_id)

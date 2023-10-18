@@ -1,7 +1,7 @@
 ---
 schemaVersion: 1.0.0
 name: tre-service-databricks
-version: 1.0.3
+version: 0.1.72
 description: "An Azure TRE service for Azure Databricks."
 registry: azuretre
 dockerfile: Dockerfile.tmpl
@@ -44,10 +44,6 @@ parameters:
     env: ARM_USE_MSI
     type: boolean
     default: false
-  - name: arm_environment
-    env: ARM_ENVIRONMENT
-    type: string
-    default: "public"
 
 outputs:
   - name: databricks_workspace_name
@@ -114,7 +110,6 @@ install:
         workspace_id: ${ bundle.parameters.workspace_id }
         address_space: ${ bundle.parameters.address_space }
         is_exposed_externally: ${ bundle.parameters.is_exposed_externally }
-        arm_environment: ${ bundle.parameters.arm_environment }
       backendConfig:
         resource_group_name: ${ bundle.parameters.tfstate_resource_group_name }
         storage_account_name: ${ bundle.parameters.tfstate_storage_account_name }
@@ -141,7 +136,6 @@ upgrade:
         workspace_id: ${ bundle.parameters.workspace_id }
         address_space: ${ bundle.parameters.address_space }
         is_exposed_externally: ${ bundle.parameters.is_exposed_externally }
-        arm_environment: ${ bundle.parameters.arm_environment }
       backendConfig:
         resource_group_name: ${ bundle.parameters.tfstate_resource_group_name }
         storage_account_name: ${ bundle.parameters.tfstate_storage_account_name }
@@ -168,7 +162,6 @@ uninstall:
         workspace_id: ${ bundle.parameters.workspace_id }
         address_space: ${ bundle.parameters.address_space }
         is_exposed_externally: ${ bundle.parameters.is_exposed_externally }
-        arm_environment: ${ bundle.parameters.arm_environment }
       backendConfig:
         resource_group_name: ${ bundle.parameters.tfstate_resource_group_name }
         storage_account_name: ${ bundle.parameters.tfstate_storage_account_name }

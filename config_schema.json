@@ -13,7 +13,7 @@
     "tre_id": {
       "description": "TRE unique identifier",
       "type": "string",
-      "pattern": "^[a-z0-9]*$",
+      "pattern": "^[a-zA-Z 0-9\\_]*$",
       "maxLength": 11
     },
     "management": {
@@ -80,11 +80,6 @@
         "enable_swagger": {
           "description": "Determines whether the Swagger interface for the API will be available.",
           "type": "boolean"
-        },
-        "tre_url": {
-          "description": "Url for the TRE environment.",
-          "type": "string",
-          "pattern": "^https?://"
         }
       }
     },

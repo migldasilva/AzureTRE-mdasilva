@@ -4,11 +4,11 @@ from typing import List
 
 from azure.cosmos.aio import CosmosClient
 from pydantic import parse_obj_as
-from db.repositories.resource_templates import ResourceTemplateRepository
 from resources import strings
 from models.domain.request_action import RequestAction
 from models.domain.resource import ResourceType
 from db.repositories.resources import ResourceRepository
+from models.domain.resource_template import ResourceTemplate
 from models.domain.authentication import User
 from core import config
 from db.repositories.base import BaseRepository
@@ -38,50 +38,37 @@ class OperationRepository(BaseRepository):
 
     def create_main_step(self, resource_template: dict, action: str, resource_id: str, status: Status, message: str) -> OperationStep:
         return OperationStep(
-            id=str(uuid.uuid4()),
-            templateStepId="main",
+            stepId="main",
             stepTitle=f"Main step for {resource_id}",
             resourceId=resource_id,
             resourceTemplateName=resource_template["name"],
             resourceType=resource_template["resourceType"],
             resourceAction=action,
-            sourceTemplateResourceId=resource_id,
             status=status,
             message=message,
             updatedWhen=self.get_timestamp())
 
-    async def create_operation_item(self, resource_id: str, resource_list: List, action: str, resource_path: str, resource_version: int, user: User, resource_repo: ResourceRepository, resource_template_repo: ResourceTemplateRepository) -> Operation:
+    async def create_operation_item(self, resource_id: str, action: str, resource_path: str, resource_version: int, user: User, resource_template: ResourceTemplate, resource_repo: ResourceRepository) -> Operation:
         operation_id = self.create_operation_id()
+        resource_template_dict = resource_template.dict(exclude_none=True)
 
         # get the right "awaiting" message based on the action
         status, message = self.get_initial_status(action)
-        all_steps = []
-        for resource in resource_list:
-            name = resource["templateName"]
-            version = resource["templateVersion"]
-            resource_type = ResourceType(resource["resourceType"])
-            primary_parent_service_name = None
-            if resource_type == ResourceType.UserResource:
-                primary_parent_workspace_service = await resource_repo.get_resource_by_id(resource["parentWorkspaceServiceId"])
-                primary_parent_service_name = primary_parent_workspace_service.templateName
-            resource_template = await resource_template_repo.get_template_by_name_and_version(name, version, resource_type, primary_parent_service_name)
-            resource_template_dict = resource_template.dict(exclude_none=True)
-            # if the template has a pipeline defined for this action, copy over all the steps to the ops document
-            steps = await self.build_step_list(
-                steps=[],
-                resource_template_dict=resource_template_dict,
-                action=action,
-                resource_repo=resource_repo,
-                resource_id=resource["id"],
-                status=status,
-                message=message
-            )
 
-            # if no pipeline is defined for this action, create a main step only
-            if len(steps) == 0:
-                all_steps.append(self.create_main_step(resource_template=resource_template_dict, action=action, resource_id=resource["id"], status=status, message=message))
-            else:
-                all_steps.extend(steps)
+        # if the template has a pipeline defined for this action, copy over all the steps to the ops document
+        steps = await self.build_step_list(
+            steps=[],
+            resource_template_dict=resource_template_dict,
+            action=action,
+            resource_repo=resource_repo,
+            resource_id=resource_id,
+            status=status,
+            message=message
+        )
+
+        # if no pipeline is defined for this action, create a main step only
+        if len(steps) == 0:
+            steps.append(self.create_main_step(resource_template=resource_template_dict, action=action, resource_id=resource_id, status=status, message=message))
 
         timestamp = self.get_timestamp()
         operation = Operation(
@@ -95,7 +82,7 @@ class OperationRepository(BaseRepository):
             action=action,
             message=message,
             user=user,
-            steps=all_steps
+            steps=steps
         )
 
         await self.save_item(operation)
@@ -134,8 +121,7 @@ class OperationRepository(BaseRepository):
                         resource_for_step_status, resource_for_step_message = self.get_initial_status(step["resourceAction"])
 
                         steps.append(OperationStep(
-                            id=str(uuid.uuid4()),
-                            templateStepId=step["stepId"],
+                            stepId=step["stepId"],
                             stepTitle=step["stepTitle"],
                             resourceId=resource_for_step.id,
                             resourceTemplateName=resource_for_step.templateName,
@@ -143,8 +129,7 @@ class OperationRepository(BaseRepository):
                             resourceAction=step["resourceAction"],
                             status=resource_for_step_status,
                             message=resource_for_step_message,
-                            updatedWhen=self.get_timestamp(),
-                            sourceTemplateResourceId=resource_id
+                            updatedWhen=self.get_timestamp()
                         ))
         return steps
 

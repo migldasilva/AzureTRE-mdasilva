@@ -17,7 +17,7 @@ export interface Operation {
 }
 
 export interface OperationStep {
-    templateStepId: string,
+    stepId: string,
     stepTitle: string,
     resourceId: string,
     resourceTemplateName: string,

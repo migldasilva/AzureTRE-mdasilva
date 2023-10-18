@@ -33,8 +33,6 @@ from db.repositories.resources_history import ResourceHistoryRepository
 from collections import defaultdict
 from event_grid.event_sender import send_status_changed_event, send_airlock_notification_event
 
-STORAGE_ENDPOINT = config.STORAGE_ENDPOINT_SUFFIX
-
 
 def get_account_by_request(airlock_request: AirlockRequest, workspace: Workspace) -> str:
     tre_id = config.TRE_ID
@@ -117,12 +115,12 @@ def get_airlock_request_container_sas_token(account_name: str,
                                    permission=required_permission,
                                    expiry=expiry)
 
-    return "https://{}.blob.{}/{}?{}" \
-        .format(account_name, STORAGE_ENDPOINT, airlock_request.id, token)
+    return "https://{}.blob.core.windows.net/{}?{}" \
+        .format(account_name, airlock_request.id, token)
 
 
 def get_account_url(account_name: str) -> str:
-    return f"https://{account_name}.blob.{STORAGE_ENDPOINT}/"
+    return f"https://{account_name}.blob.core.windows.net/"
 
 
 async def review_airlock_request(airlock_review_input: AirlockReviewInCreate, airlock_request: AirlockRequest, user: User, workspace: Workspace,
@@ -393,6 +391,12 @@ async def delete_review_user_resource(
     # disable might contain logic that we need to execute before the deletion of the resource
     _ = await disable_user_resource(user_resource, user, workspace_service, user_resource_repo, resource_template_repo, operations_repo, resource_history_repo)
 
+    resource_template = await resource_template_repo.get_template_by_name_and_version(
+        user_resource.templateName,
+        user_resource.templateVersion,
+        ResourceType.UserResource,
+        workspace_service.templateName)
+
     logging.info(f"Deleting user resource {user_resource.id} in workspace service {workspace_service.id}")
     operation = await send_uninstall_message(
         resource=user_resource,
@@ -401,7 +405,8 @@ async def delete_review_user_resource(
         resource_type=ResourceType.UserResource,
         resource_template_repo=resource_template_repo,
         resource_history_repo=resource_history_repo,
-        user=user)
+        user=user,
+        resource_template=resource_template)
     logging.info(f"Started operation {operation}")
     return operation
 

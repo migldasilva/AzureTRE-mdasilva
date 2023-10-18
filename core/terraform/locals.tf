@@ -4,14 +4,11 @@ locals {
     tre_id              = var.tre_id
     tre_core_service_id = var.tre_id
   }
-
   api_diagnostic_categories_enabled = [
     "AppServiceHTTPLogs", "AppServiceConsoleLogs", "AppServiceAppLogs", "AppServiceFileAuditLogs",
     "AppServiceAuditLogs", "AppServiceIPSecAuditLogs", "AppServicePlatformLogs", "AppServiceAntivirusScanAuditLogs"
   ]
-  servicebus_diagnostic_categories_enabled = ["OperationalLogs", "VNetAndIPFilteringLogs", "RuntimeAuditLogs", "ApplicationMetricsLogs"]
-
-  docker_registry_server = data.azurerm_container_registry.mgmt_acr.login_server
+  docker_registry_server = "${var.acr_name}.azurecr.io"
 
   # https://learn.microsoft.com/en-us/azure/cosmos-db/how-to-configure-firewall#allow-requests-from-the-azure-portal
   azure_portal_cosmos_ips = "104.42.195.92,40.76.54.131,52.176.6.30,52.169.50.45,52.187.184.26"
@@ -31,10 +28,8 @@ locals {
     "privatelink.cert.api.azureml.ms",
     "privatelink.notebooks.azure.net",
     "privatelink.postgres.database.azure.com",
+    "nexus-${var.tre_id}.${var.location}.cloudapp.azure.com",
     "privatelink.mysql.database.azure.com",
     "privatelink.azuredatabricks.net"
   ])
-
-  # The followig regex extracts different parts of the service bus endpoint: scheme, fqdn, port, path, query and fragment. This allows us to extract the needed fqdn part.
-  service_bus_namespace_fqdn = regex("(?:(?P<scheme>[^:/?#]+):)?(?://(?P<fqdn>[^/?#:]*))?(?::(?P<port>[0-9]+))?(?P<path>[^?#]*)(?:\\?(?P<query>[^#]*))?(?:#(?P<fragment>.*))?", azurerm_servicebus_namespace.sb.endpoint).fqdn
 }

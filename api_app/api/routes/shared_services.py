@@ -1,4 +1,3 @@
-import asyncio
 import logging
 
 from fastapi import APIRouter, Depends, HTTPException, Header, status, Response
@@ -13,12 +12,12 @@ from db.repositories.resources_history import ResourceHistoryRepository
 from db.repositories.shared_services import SharedServiceRepository
 from models.domain.resource import ResourceType
 from models.schemas.operation import OperationInList, OperationInResponse
-from models.schemas.shared_service import RestrictedSharedServiceInResponse, RestrictedSharedServicesInList, SharedServiceInCreate, SharedServicesInList, SharedServiceInResponse
+from models.schemas.shared_service import RestrictedSharedServiceInResponse, SharedServiceInCreate, SharedServicesInList, SharedServiceInResponse
 from models.schemas.resource import ResourceHistoryInList, ResourcePatch
 from resources import strings
 from .workspaces import save_and_deploy_resource, construct_location_header
 from azure.cosmos.exceptions import CosmosAccessConditionFailedError
-from .resource_helpers import enrich_resource_with_available_upgrades, send_custom_action_message, send_uninstall_message, send_resource_request_message
+from .resource_helpers import send_custom_action_message, send_uninstall_message, send_resource_request_message
 from services.authentication import get_current_admin_user, get_current_tre_user_or_tre_admin
 from models.domain.request_action import RequestAction
 
@@ -33,18 +32,13 @@ def user_is_tre_admin(user):
 
 
 @shared_services_router.get("/shared-services", response_model=SharedServicesInList, name=strings.API_GET_ALL_SHARED_SERVICES, dependencies=[Depends(get_current_tre_user_or_tre_admin)])
-async def retrieve_shared_services(shared_services_repo=Depends(get_repository(SharedServiceRepository)), user=Depends(get_current_tre_user_or_tre_admin), resource_template_repo=Depends(get_repository(ResourceTemplateRepository))) -> SharedServicesInList:
+async def retrieve_shared_services(shared_services_repo=Depends(get_repository(SharedServiceRepository))) -> SharedServicesInList:
     shared_services = await shared_services_repo.get_active_shared_services()
-    await asyncio.gather(*[enrich_resource_with_available_upgrades(shared_service, resource_template_repo) for shared_service in shared_services])
-    if user_is_tre_admin(user):
-        return SharedServicesInList(sharedServices=shared_services)
-    else:
-        return RestrictedSharedServicesInList(sharedServices=shared_services)
+    return SharedServicesInList(sharedServices=shared_services)
 
 
 @shared_services_router.get("/shared-services/{shared_service_id}", response_model=SharedServiceInResponse, name=strings.API_GET_SHARED_SERVICE_BY_ID, dependencies=[Depends(get_current_tre_user_or_tre_admin), Depends(get_shared_service_by_id_from_path)])
-async def retrieve_shared_service_by_id(shared_service=Depends(get_shared_service_by_id_from_path), user=Depends(get_current_tre_user_or_tre_admin), resource_template_repo=Depends(get_repository(ResourceTemplateRepository))):
-    await enrich_resource_with_available_upgrades(shared_service, resource_template_repo)
+async def retrieve_shared_service_by_id(shared_service=Depends(get_shared_service_by_id_from_path), user=Depends(get_current_tre_user_or_tre_admin)):
     if user_is_tre_admin(user):
         return SharedServiceInResponse(sharedService=shared_service)
     else:
@@ -85,12 +79,13 @@ async def create_shared_service(response: Response, shared_service_input: Shared
                               dependencies=[Depends(get_current_admin_user), Depends(get_shared_service_by_id_from_path)])
 async def patch_shared_service(shared_service_patch: ResourcePatch, response: Response, user=Depends(get_current_admin_user), shared_service_repo=Depends(get_repository(SharedServiceRepository)), resource_history_repo=Depends(get_repository(ResourceHistoryRepository)), shared_service=Depends(get_shared_service_by_id_from_path), resource_template_repo=Depends(get_repository(ResourceTemplateRepository)), operations_repo=Depends(get_repository(OperationRepository)), etag: str = Header(...), force_version_update: bool = False) -> SharedServiceInResponse:
     try:
-        patched_shared_service, _ = await shared_service_repo.patch_shared_service(shared_service, shared_service_patch, etag, resource_template_repo, resource_history_repo, user, force_version_update)
+        patched_shared_service, resource_template = await shared_service_repo.patch_shared_service(shared_service, shared_service_patch, etag, resource_template_repo, resource_history_repo, user, force_version_update)
         operation = await send_resource_request_message(
             resource=patched_shared_service,
             operations_repo=operations_repo,
             resource_repo=shared_service_repo,
             user=user,
+            resource_template=resource_template,
             resource_template_repo=resource_template_repo,
             resource_history_repo=resource_history_repo,
             action=RequestAction.Upgrade)
@@ -110,6 +105,8 @@ async def delete_shared_service(response: Response, user=Depends(get_current_adm
     if shared_service.isEnabled:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=strings.SHARED_SERVICE_NEEDS_TO_BE_DISABLED_BEFORE_DELETION)
 
+    resource_template = await resource_template_repo.get_template_by_name_and_version(shared_service.templateName, shared_service.templateVersion, ResourceType.SharedService)
+
     operation = await send_uninstall_message(
         resource=shared_service,
         resource_repo=shared_service_repo,
@@ -117,7 +114,8 @@ async def delete_shared_service(response: Response, user=Depends(get_current_adm
         resource_type=ResourceType.SharedService,
         resource_template_repo=resource_template_repo,
         resource_history_repo=resource_history_repo,
-        user=user)
+        user=user,
+        resource_template=resource_template)
 
     response.headers["Location"] = construct_location_header(operation)
 

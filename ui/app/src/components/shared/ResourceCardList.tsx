@@ -11,7 +11,6 @@ interface ResourceCardListProps {
   removeResource: (resource: Resource) => void
   emptyText: string,
   readonly?: boolean
-  isExposedExternally?: boolean
 }
 
 export const ResourceCardList: React.FunctionComponent<ResourceCardListProps> = (props: ResourceCardListProps) => {
@@ -31,8 +30,7 @@ export const ResourceCardList: React.FunctionComponent<ResourceCardListProps> = 
                       onUpdate={(resource: Resource) => props.updateResource(resource)}
                       onDelete={(resource: Resource) => props.removeResource(resource)}
                       itemId={i}
-                      readonly={props.readonly}
-                      isExposedExternally={r.properties.is_exposed_externally === undefined ? props.isExposedExternally : r.properties.is_exposed_externally} />
+                      readonly={props.readonly} />
                   </Stack.Item>
                 )
               })

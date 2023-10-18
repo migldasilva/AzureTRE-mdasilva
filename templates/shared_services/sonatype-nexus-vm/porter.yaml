@@ -1,7 +1,7 @@
 ---
 schemaVersion: 1.0.0
 name: tre-shared-service-sonatype-nexus
-version: 2.8.12
+version: 2.3.0
 description: "A Sonatype Nexus shared service"
 dockerfile: Dockerfile.tmpl
 registry: azuretre
@@ -39,10 +39,6 @@ parameters:
     env: ARM_USE_MSI
     type: boolean
     default: false
-  - name: arm_environment
-    env: ARM_ENVIRONMENT
-    type: string
-    default: "public"
   - name: ssl_cert_name
     type: string
     default: "nexus-ssl"
@@ -58,17 +54,7 @@ outputs:
     applyTo:
       - install
       - upgrade
-  - name: private_ip_addresses
-    applyTo:
-      - install
-      - upgrade
-  - name: connection_uri
-    type: string
-    applyTo:
-      - install
-      - upgrade
-  - name: is_exposed_externally
-    type: boolean
+  - name: shared_address_prefixes
     applyTo:
       - install
       - upgrade
@@ -76,7 +62,9 @@ outputs:
 mixins:
   - exec
   - terraform:
-      clientVersion: 1.4.5
+      clientVersion: 1.3.6
+  - az:
+      clientVersion: 2.37.0
 
 install:
   - terraform:
@@ -93,9 +81,7 @@ install:
       outputs:
         - name: workspace_vm_allowed_fqdns_list
         - name: nexus_allowed_fqdns_list
-        - name: private_ip_addresses
-        - name: connection_uri
-        - name: is_exposed_externally
+        - name: shared_address_prefixes
 
 upgrade:
   - terraform:
@@ -112,10 +98,7 @@ upgrade:
       outputs:
         - name: workspace_vm_allowed_fqdns_list
         - name: nexus_allowed_fqdns_list
-        - name: private_ip_addresses
-        - name: connection_uri
-        - name: is_exposed_externally
-
+        - name: shared_address_prefixes
 uninstall:
   - terraform:
       description: "Tear down shared service"

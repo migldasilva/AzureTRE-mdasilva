@@ -1,9 +1,8 @@
 import pytest
 import logging
-from e2e_tests.conftest import disable_and_delete_tre_resource
 from datetime import date
 
-from resources.resource import post_resource
+from resources.resource import disable_and_delete_resource, post_resource
 from helpers import get_shared_service_by_name
 from resources import strings
 from helpers import get_admin_token
@@ -92,9 +91,9 @@ async def test_patch_firewall(verify):
 shared_service_templates_to_create = [
     strings.GITEA_SHARED_SERVICE,
     strings.ADMIN_VM_SHARED_SERVICE,
-    # Tested in test_create_certs_nexus_shared_service
-    # strings.NEXUS_SHARED_SERVICE,
+
     strings.AIRLOCK_NOTIFIER_SHARED_SERVICE,
+
     # TODO: fix cyclecloud and enable this
     # strings.CYCLECLOUD_SHARED_SERVICE,
 ]
@@ -108,7 +107,7 @@ create_airlock_notifier_properties = {
 
 
 @pytest.mark.shared_services
-@pytest.mark.timeout(50 * 60)
+@pytest.mark.timeout(40 * 60)
 @pytest.mark.parametrize("template_name", shared_service_templates_to_create)
 async def test_create_shared_service(template_name, verify) -> None:
     await disable_and_delete_shared_service_if_exists(template_name, verify)
@@ -133,12 +132,15 @@ async def test_create_shared_service(template_name, verify) -> None:
         verify=verify,
     )
 
-    await disable_and_delete_tre_resource(shared_service_path, verify)
+    admin_token = await get_admin_token(verify)
+    await disable_and_delete_resource(
+        f"/api{shared_service_path}", admin_token, verify
+    )
 
 
 @pytest.mark.shared_services
 @pytest.mark.timeout(60 * 60)
-@pytest.mark.skipif(date.today().weekday() in [5, 6], reason="LetsEncrypt limits to 5 times a week. Skipping on SAT & SUN.")
+@pytest.mark.skipif(date.today().weekday() in [4, 5], reason="LetsEncrypt limits to 5 times a week. Skipping on FRI & SAT.")
 async def test_create_certs_nexus_shared_service(verify) -> None:
     await disable_and_delete_shared_service_if_exists(strings.NEXUS_SHARED_SERVICE, verify)
     await disable_and_delete_shared_service_if_exists(strings.CERTS_SHARED_SERVICE, verify)
@@ -181,9 +183,13 @@ async def test_create_certs_nexus_shared_service(verify) -> None:
         verify=verify,
     )
 
-    await disable_and_delete_tre_resource(nexus_shared_service_path, verify)
+    await disable_and_delete_resource(
+        f"/api{nexus_shared_service_path}", admin_token, verify
+    )
 
-    await disable_and_delete_tre_resource(certs_shared_service_path, verify)
+    await disable_and_delete_resource(
+        f"/api{certs_shared_service_path}", admin_token, verify
+    )
 
 
 async def disable_and_delete_shared_service_if_exists(shared_service_name, verify) -> None:
@@ -198,4 +204,6 @@ async def disable_and_delete_shared_service_if_exists(shared_service_name, verif
         LOGGER.info(
             f"Shared service {shared_service_name} already exists (id {id}), deleting it first..."
         )
-        await disable_and_delete_tre_resource(f"/shared-services/{id}", verify)
+        await disable_and_delete_resource(
+            f"/api/shared-services/{id}", admin_token, verify
+        )

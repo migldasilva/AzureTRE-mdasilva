@@ -34,11 +34,6 @@ resource "azurerm_private_endpoint" "blobpe" {
     is_manual_connection           = false
     subresource_names              = ["Blob"]
   }
-
-  # private endpoints in serial
-  depends_on = [
-    azurerm_private_endpoint.kvpe
-  ]
 }
 
 resource "azurerm_private_endpoint" "filepe" {
@@ -61,9 +56,4 @@ resource "azurerm_private_endpoint" "filepe" {
     is_manual_connection           = false
     subresource_names              = ["file"]
   }
-
-  # private endpoints in serial
-  depends_on = [
-    azurerm_private_endpoint.blobpe
-  ]
 }

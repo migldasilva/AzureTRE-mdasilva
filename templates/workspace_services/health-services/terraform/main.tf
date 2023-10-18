@@ -17,7 +17,7 @@ resource "azurerm_healthcare_fhir_service" "fhir" {
   tags                = local.workspace_service_tags
 
   authentication {
-    authority = local.authority
+    authority = "https://login.microsoftonline.com/${local.aad_tenant_id}"
     audience  = "https://hs${local.service_resource_name_suffix}-fhir${local.service_resource_name_suffix}.fhir.azurehealthcareapis.com"
   }
 
@@ -25,8 +25,6 @@ resource "azurerm_healthcare_fhir_service" "fhir" {
     type = "SystemAssigned"
   }
 
-
-  lifecycle { ignore_changes = [tags] }
 }
 
 resource "azurerm_healthcare_dicom_service" "dicom" {
@@ -39,8 +37,6 @@ resource "azurerm_healthcare_dicom_service" "dicom" {
   identity {
     type = "SystemAssigned"
   }
-
-  lifecycle { ignore_changes = [tags] }
 }
 
 resource "azurerm_private_endpoint" "health_services_private_endpoint" {

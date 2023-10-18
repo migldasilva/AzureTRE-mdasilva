@@ -21,7 +21,7 @@ jobs:
 
     steps:
       - name: Checkout (GitHub)
-        uses: actions/checkout@v3
+        uses: actions/checkout@v2
 
       - name: Build and run dev container task
         uses: ./.github/actions/devcontainer_run_command
@@ -35,7 +35,6 @@ jobs:
           DEVCONTAINER_TAG: latest
           CI_CACHE_ACR_NAME: ${{ secrets.ACR_NAME}}
           AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
-          AZURE_ENVIRONMENT: ${{ secrets.AZURE_ENVIRONMENT }}
 
       - name: Create the CLI package
         uses: ./.github/actions/devcontainer_run_command
@@ -47,7 +46,6 @@ jobs:
           DEVCONTAINER_TAG: latest
           CI_CACHE_ACR_NAME: ${{ secrets.ACR_NAME}}
           AZURE_CREDENTIALS: ${{ secrets.AZURE_CREDENTIALS }}
-          AZURE_ENVIRONMENT: ${{ secrets.AZURE_ENVIRONMENT }}
 
       - name: Upload Wheel as artifact
         uses: actions/upload-artifact@v3

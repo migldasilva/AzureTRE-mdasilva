@@ -44,35 +44,10 @@ resource "azurerm_log_analytics_linked_storage_account" "workspace_storage_custo
   storage_account_ids   = [azurerm_storage_account.app_insights.id]
 }
 
-# TODO: Switch to azurerm once the followiung issue is resolved: https://github.com/microsoft/AzureTRE/issues/3625
-# resource "azurerm_monitor_private_link_scope" "workspace" {
-#   name                = "ampls-${var.tre_id}-ws-${local.short_workspace_id}"
-#   resource_group_name = var.resource_group_name
-#   tags                = var.tre_workspace_tags
-
-#   lifecycle { ignore_changes = [tags] }
-# }
-
-resource "azapi_resource" "ampls_workspace" {
-  type      = "microsoft.insights/privateLinkScopes@2021-07-01-preview"
-  name      = "ampls-${var.tre_id}-ws-${local.short_workspace_id}"
-  parent_id = var.resource_group_id
-  location  = "global"
-  tags      = var.tre_workspace_tags
-
-  body = jsonencode({
-    properties = {
-      accessModeSettings = {
-        ingestionAccessMode = "PrivateOnly"
-        queryAccessMode     = "PrivateOnly"
-      }
-    }
-  })
-
-  response_export_values = [
-    "id"
-  ]
-
+resource "azurerm_monitor_private_link_scope" "workspace" {
+  name                = "ampls-${var.tre_id}-ws-${local.short_workspace_id}"
+  resource_group_name = var.resource_group_name
+  tags                = var.tre_workspace_tags
 
   lifecycle { ignore_changes = [tags] }
 }
@@ -80,7 +55,7 @@ resource "azapi_resource" "ampls_workspace" {
 resource "azurerm_monitor_private_link_scoped_service" "ampls_log_anaytics" {
   name                = "ampls-log-anaytics-service"
   resource_group_name = var.resource_group_name
-  scope_name          = azapi_resource.ampls_workspace.name
+  scope_name          = azurerm_monitor_private_link_scope.workspace.name
   linked_resource_id  = azurerm_log_analytics_workspace.workspace.id
 }
 
@@ -126,14 +101,12 @@ resource "azapi_resource" "appinsights" {
     "id",
     "properties.ConnectionString",
   ]
-
-  lifecycle { ignore_changes = [tags] }
 }
 
 resource "azurerm_monitor_private_link_scoped_service" "ampls_app_insights" {
   name                = "ampls-app-insights-service"
   resource_group_name = var.resource_group_name
-  scope_name          = azapi_resource.ampls_workspace.name
+  scope_name          = azurerm_monitor_private_link_scope.workspace.name
 
   # linked_resource_id  = azurerm_application_insights.workspace.id
   linked_resource_id = jsondecode(azapi_resource.appinsights.output).id
@@ -149,7 +122,7 @@ resource "azurerm_private_endpoint" "azure_monitor_private_endpoint" {
   lifecycle { ignore_changes = [tags] }
 
   private_service_connection {
-    private_connection_resource_id = jsondecode(azapi_resource.ampls_workspace.output).id
+    private_connection_resource_id = azurerm_monitor_private_link_scope.workspace.id
     name                           = "psc-ampls-${var.tre_id}-ws-${local.short_workspace_id}"
     subresource_names              = ["azuremonitor"]
     is_manual_connection           = false

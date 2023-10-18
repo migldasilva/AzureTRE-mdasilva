@@ -30,12 +30,3 @@ variable "smtp_password" {
 variable "smtp_from_email" {
   type = string
 }
-
-variable "smtp_server_port" {
-  type = string
-}
-
-variable "smtp_server_enable_ssl" {
-  type    = bool
-  default = false
-}

@@ -55,7 +55,7 @@ resource "azurerm_private_endpoint" "private_endpoint" {
   }
 
   private_dns_zone_group {
-    name                 = module.terraform_azurerm_environment_configuration.private_links["privatelink.mysql.database.azure.com"]
+    name                 = "privatelink.mysql.database.azure.com"
     private_dns_zone_ids = [data.azurerm_private_dns_zone.mysql.id]
   }
 
@@ -71,6 +71,4 @@ resource "azurerm_key_vault_secret" "db_password" {
   depends_on = [
     azurerm_key_vault_access_policy.gitea_policy
   ]
-
-  lifecycle { ignore_changes = [tags] }
 }

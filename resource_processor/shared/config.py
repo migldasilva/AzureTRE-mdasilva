@@ -17,11 +17,7 @@ def get_config(logger_adapter) -> dict:
     config["service_bus_namespace"] = os.environ["SERVICE_BUS_FULLY_QUALIFIED_NAMESPACE"]
     config["vmss_msi_id"] = os.environ.get("VMSS_MSI_ID", None)
     config["number_processes"] = os.environ.get("NUMBER_PROCESSES", "1")
-    config["key_vault_url"] = os.environ.get("KEY_VAULT_URL", os.environ.get("KEYVAULT_URI", None))
-    config["arm_environment"] = os.environ.get("ARM_ENVIRONMENT", "public")
-    config["azure_environment"] = os.environ.get("AZURE_ENVIRONMENT", "AzureCloud")
-    config["aad_authority_url"] = os.environ.get("AAD_AUTHORITY_URL", "https://login.microsoftonline.com")
-    config["microsoft_graph_fqdn"] = os.environ.get("MICROSOFT_GRAPH_FQDN", "graph.microsoft.com")
+    config["key_vault_name"] = os.environ.get("KEY_VAULT_NAME", os.environ.get("KEYVAULT", None))
 
     try:
         config["number_processes_int"] = int(config["number_processes"])
@@ -45,17 +41,11 @@ def get_config(logger_adapter) -> dict:
     else:
         config["arm_client_secret"] = ""  # referenced in the credential set
 
-    # when running in vscode devcontainer
-    if "DEVCONTAINER" in os.environ:
-        config["remote_containers_ipc"] = os.environ["REMOTE_CONTAINERS_IPC"]
-
     # Create env dict for porter
     config["porter_env"] = {
         "HOME": os.environ["HOME"],
         "PATH": os.environ["PATH"],
-        "KEY_VAULT_URL": config["key_vault_url"],
-        "ARM_ENVIRONMENT": config["arm_environment"],
-        "AZURE_ENVIRONMENT": config["azure_environment"],
+        "KEY_VAULT_NAME": config["key_vault_name"],
 
         # These are needed since they are referenced as credentials in every bundle and also in arm_auth credential set.
         "ARM_CLIENT_ID": config["arm_client_id"],
@@ -70,14 +60,6 @@ def get_config(logger_adapter) -> dict:
                 "AAD_TENANT_ID": config["aad_tenant_id"],
                 "APPLICATION_ADMIN_CLIENT_ID": config["application_admin_client_id"],
                 "APPLICATION_ADMIN_CLIENT_SECRET": config["application_admin_client_secret"],
-            }
-        )
-
-    # when running in vscode devcontainer
-    if "DEVCONTAINER" in os.environ:
-        config["porter_env"].update(
-            {
-                "REMOTE_CONTAINERS_IPC": config["remote_containers_ipc"]
             }
         )
 

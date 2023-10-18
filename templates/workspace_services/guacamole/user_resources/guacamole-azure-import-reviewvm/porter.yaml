@@ -1,7 +1,7 @@
 ---
 schemaVersion: 1.0.0
 name: tre-service-guacamole-import-reviewvm
-version: 0.2.8
+version: 0.2.2
 description: "An Azure TRE User Resource Template for reviewing Airlock import requests"
 dockerfile: Dockerfile.tmpl
 registry: azuretre
@@ -50,10 +50,6 @@ parameters:
   - name: id
     type: string
     description: "An Id for this installation"
-  - name: azure_environment
-    type: string
-    default: "AzureCloud"
-    description: "Used by Azure CLI to set the Azure environment"
     env: id
   - name: tfstate_resource_group_name
     type: string
@@ -70,10 +66,6 @@ parameters:
     env: ARM_USE_MSI
     type: boolean
     default: false
-  - name: arm_environment
-    env: ARM_ENVIRONMENT
-    type: string
-    default: "public"
   - name: os_image
     type: string
     default: "Server 2019 Data Science VM"
@@ -90,17 +82,14 @@ outputs:
     type: string
     applyTo:
       - install
-      - upgrade
   - name: hostname
     type: string
     applyTo:
       - install
-      - upgrade
   - name: connection_uri
     type: string
     applyTo:
       - install
-      - upgrade
   - name: azure_resource_id
     type: string
     applyTo:
@@ -202,13 +191,6 @@ start:
       outputs:
         - name: azure_resource_id
   - az:
-      description: "Set Azure Cloud Environment"
-      arguments:
-        - cloud
-        - set
-      flags:
-        name: ${ bundle.parameters.azure_environment }
-  - az:
       description: "Login to Azure"
       arguments:
         - login
@@ -235,13 +217,6 @@ stop:
         key: ${ bundle.parameters.id }
       outputs:
         - name: azure_resource_id
-  - az:
-      description: "Set Azure Cloud Environment"
-      arguments:
-        - cloud
-        - set
-      flags:
-        name: ${ bundle.parameters.azure_environment }
   - az:
       description: "Login to Azure"
       arguments:
@@ -272,13 +247,6 @@ reset_password:
         - name: vm_username
         - name: vm_password_secret_name
         - name: keyvault_name
-  - az:
-      description: "Set Azure Cloud Environment"
-      arguments:
-        - cloud
-        - set
-      flags:
-        name: ${ bundle.parameters.azure_environment }
   - az:
       description: "Login to Azure"
       arguments:

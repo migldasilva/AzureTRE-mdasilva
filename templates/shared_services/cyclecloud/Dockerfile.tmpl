@@ -5,9 +5,10 @@ FROM debian:bullseye-slim
 
 RUN rm -f /etc/apt/apt.conf.d/docker-clean; echo 'Binary::apt::APT::Keep-Downloaded-Packages "true";' > /etc/apt/apt.conf.d/keep-cache
 
-# Git is required for terraform_azurerm_environment_configuration
+# Install Git
 RUN --mount=type=cache,target=/var/cache/apt --mount=type=cache,target=/var/lib/apt \
-    apt-get update && apt-get install -y git --no-install-recommends
+    apt-get update \
+    && apt-get install --no-install-recommends -y git
 
 # PORTER_MIXINS
 

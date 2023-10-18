@@ -32,7 +32,7 @@ resource "azurerm_key_vault_access_policy" "managed_identity" {
 }
 
 data "azurerm_private_dns_zone" "vaultcore" {
-  name                = module.terraform_azurerm_environment_configuration.private_links["privatelink.vaultcore.azure.net"]
+  name                = "privatelink.vaultcore.azure.net"
   resource_group_name = azurerm_resource_group.core.name
 
   depends_on = [
@@ -70,8 +70,6 @@ resource "azurerm_key_vault_secret" "api_client_id" {
   depends_on = [
     azurerm_key_vault_access_policy.deployer
   ]
-
-  lifecycle { ignore_changes = [tags] }
 }
 
 resource "azurerm_key_vault_secret" "api_client_secret" {
@@ -82,8 +80,6 @@ resource "azurerm_key_vault_secret" "api_client_secret" {
   depends_on = [
     azurerm_key_vault_access_policy.deployer
   ]
-
-  lifecycle { ignore_changes = [tags] }
 }
 
 resource "azurerm_key_vault_secret" "auth_tenant_id" {
@@ -94,8 +90,6 @@ resource "azurerm_key_vault_secret" "auth_tenant_id" {
   depends_on = [
     azurerm_key_vault_access_policy.deployer
   ]
-
-  lifecycle { ignore_changes = [tags] }
 }
 
 resource "azurerm_key_vault_secret" "application_admin_client_id" {
@@ -106,8 +100,6 @@ resource "azurerm_key_vault_secret" "application_admin_client_id" {
   depends_on = [
     azurerm_key_vault_access_policy.deployer
   ]
-
-  lifecycle { ignore_changes = [tags] }
 }
 
 resource "azurerm_key_vault_secret" "application_admin_client_secret" {
@@ -118,8 +110,6 @@ resource "azurerm_key_vault_secret" "application_admin_client_secret" {
   depends_on = [
     azurerm_key_vault_access_policy.deployer
   ]
-
-  lifecycle { ignore_changes = [tags] }
 }
 
 resource "azurerm_monitor_diagnostic_setting" "kv" {
@@ -131,12 +121,22 @@ resource "azurerm_monitor_diagnostic_setting" "kv" {
     for_each = ["AuditEvent", "AzurePolicyEvaluationDetails"]
     content {
       category = enabled_log.value
+
+      retention_policy {
+        enabled = true
+        days    = 365
+      }
     }
   }
 
   metric {
     category = "AllMetrics"
     enabled  = true
+
+    retention_policy {
+      enabled = true
+      days    = 365
+    }
   }
 
   lifecycle { ignore_changes = [log_analytics_destination_type] }

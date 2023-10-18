@@ -52,12 +52,22 @@ resource "azurerm_monitor_diagnostic_setting" "kv" {
     for_each = ["AuditEvent", "AzurePolicyEvaluationDetails"]
     content {
       category = enabled_log.value
+
+      retention_policy {
+        enabled = true
+        days    = 365
+      }
     }
   }
 
   metric {
     category = "AllMetrics"
     enabled  = true
+
+    retention_policy {
+      enabled = true
+      days    = 365
+    }
   }
 }
 
@@ -84,15 +94,15 @@ resource "azurerm_key_vault_access_policy" "deployer" {
   secret_permissions = ["Get", "List", "Set", "Delete", "Purge", "Recover"]
 }
 
-resource "terraform_data" "wait_for_dns_vault" {
+resource "null_resource" "wait_for_dns_vault" {
   provisioner "local-exec" {
     command    = "bash -c \"sleep 120s\""
     on_failure = fail
   }
 
-  triggers_replace = [
-    azurerm_private_endpoint.kvpe.private_service_connection[0].private_ip_address # only wait on new/changed private IP address
-  ]
+  triggers = {
+    always_run = azurerm_private_endpoint.kvpe.private_service_connection[0].private_ip_address # only wait on new/changed private IP address
+  }
 
   depends_on = [azurerm_private_endpoint.kvpe]
 
@@ -106,10 +116,8 @@ resource "azurerm_key_vault_secret" "aad_tenant_id" {
   depends_on = [
     azurerm_key_vault_access_policy.deployer,
     azurerm_key_vault_access_policy.resource_processor,
-    terraform_data.wait_for_dns_vault
+    null_resource.wait_for_dns_vault
   ]
-
-  lifecycle { ignore_changes = [tags] }
 }
 
 # This secret only gets written if Terraform is not responsible for
@@ -123,10 +131,8 @@ resource "azurerm_key_vault_secret" "client_id" {
   depends_on = [
     azurerm_key_vault_access_policy.deployer,
     azurerm_key_vault_access_policy.resource_processor,
-    terraform_data.wait_for_dns_vault
+    null_resource.wait_for_dns_vault
   ]
-
-  lifecycle { ignore_changes = [tags] }
 }
 
 data "azurerm_key_vault_secret" "client_secret" {
@@ -146,8 +152,6 @@ resource "azurerm_key_vault_secret" "client_secret" {
   depends_on = [
     azurerm_key_vault_access_policy.deployer,
     azurerm_key_vault_access_policy.resource_processor,
-    terraform_data.wait_for_dns_vault
+    null_resource.wait_for_dns_vault
   ]
-
-  lifecycle { ignore_changes = [tags] }
 }

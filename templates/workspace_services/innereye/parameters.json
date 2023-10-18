@@ -57,18 +57,6 @@
       "source": {
         "env": "MGMT_STORAGE_ACCOUNT_NAME"
       }
-    },
-    {
-      "name": "azure_environment",
-      "source": {
-        "env": "AZURE_ENVIRONMENT"
-      }
-    },
-    {
-      "name": "arm_environment",
-      "source": {
-        "env": "ARM_ENVIRONMENT"
-      }
     }
   ]
 }

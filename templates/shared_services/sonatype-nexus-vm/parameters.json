@@ -45,12 +45,6 @@
       "source": {
         "env": "SSL_CERT_NAME"
       }
-    },
-    {
-      "name": "arm_environment",
-      "source": {
-        "env": "ARM_ENVIRONMENT"
-      }
     }
   ]
 }

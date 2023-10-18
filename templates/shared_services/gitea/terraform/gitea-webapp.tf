@@ -115,7 +115,7 @@ resource "azurerm_private_endpoint" "gitea_private_endpoint" {
   }
 
   private_dns_zone_group {
-    name                 = module.terraform_azurerm_environment_configuration.private_links["privatelink.azurewebsites.net"]
+    name                 = "privatelink.azurewebsites.net"
     private_dns_zone_ids = [data.azurerm_private_dns_zone.azurewebsites.id]
   }
 
@@ -132,12 +132,22 @@ resource "azurerm_monitor_diagnostic_setting" "webapp_gitea" {
     content {
       category = log.value
       enabled  = contains(local.webapp_diagnostic_categories_enabled, log.value) ? true : false
+
+      retention_policy {
+        enabled = contains(local.webapp_diagnostic_categories_enabled, log.value) ? true : false
+        days    = 365
+      }
     }
   }
 
   metric {
     category = "AllMetrics"
     enabled  = true
+
+    retention_policy {
+      enabled = true
+      days    = 365
+    }
   }
 }
 
@@ -158,8 +168,6 @@ resource "azurerm_key_vault_secret" "gitea_password" {
   depends_on = [
     azurerm_key_vault_access_policy.gitea_policy
   ]
-
-  lifecycle { ignore_changes = [tags] }
 }
 
 resource "azurerm_storage_share" "gitea" {

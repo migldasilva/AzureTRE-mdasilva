@@ -4,6 +4,3 @@
 **/.terraform/*
 **/*_backend.tf
 Dockerfile.tmpl
-.env*
-deploy.sh
-destroy.sh

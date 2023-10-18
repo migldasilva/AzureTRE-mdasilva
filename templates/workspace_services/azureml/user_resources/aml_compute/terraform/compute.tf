@@ -26,6 +26,4 @@ resource "azapi_resource" "compute_instance" {
       }
     }
   })
-
-  lifecycle { ignore_changes = [tags] }
 }

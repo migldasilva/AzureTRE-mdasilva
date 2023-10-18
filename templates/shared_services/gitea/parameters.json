@@ -39,12 +39,6 @@
       "source": {
         "env": "MGMT_STORAGE_ACCOUNT_NAME"
       }
-    },
-    {
-      "name": "arm_environment",
-      "source": {
-        "env": "ARM_ENVIRONMENT"
-      }
     }
   ]
 }

@@ -200,15 +200,11 @@ resource "azurerm_private_endpoint" "databricks_filesystem_private_endpoint" {
     name                           = "private-service-connection-databricks-filesystem-${local.service_resource_name_suffix}"
     private_connection_resource_id = join("", [azurerm_databricks_workspace.databricks.managed_resource_group_id, "/providers/Microsoft.Storage/storageAccounts/${local.storage_name}"])
     is_manual_connection           = false
-    subresource_names              = ["dfs"]
+    subresource_names              = ["blob"]
   }
 
   private_dns_zone_group {
     name                 = "private-dns-zone-group-databricks-filesystem-${local.service_resource_name_suffix}"
-    private_dns_zone_ids = [data.azurerm_private_dns_zone.dfscore.id]
+    private_dns_zone_ids = [data.azurerm_private_dns_zone.blobcore.id]
   }
-
-  depends_on = [
-    azurerm_private_endpoint.databricks_control_plane_private_endpoint
-  ]
 }

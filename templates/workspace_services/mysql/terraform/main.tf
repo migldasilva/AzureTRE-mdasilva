@@ -31,12 +31,6 @@ provider "azurerm" {
   }
 }
 
-module "terraform_azurerm_environment_configuration" {
-  source          = "git::https://github.com/microsoft/terraform-azurerm-environment-configuration.git?ref=0.2.0"
-  arm_environment = var.arm_environment
-}
-
-
 data "azurerm_resource_group" "ws" {
   name = "rg-${var.tre_id}-ws-${local.short_workspace_id}"
 }
@@ -58,6 +52,6 @@ data "azurerm_subnet" "services" {
 }
 
 data "azurerm_private_dns_zone" "mysql" {
-  name                = module.terraform_azurerm_environment_configuration.private_links["privatelink.mysql.database.azure.com"]
+  name                = "privatelink.mysql.database.azure.com"
   resource_group_name = local.core_resource_group_name
 }

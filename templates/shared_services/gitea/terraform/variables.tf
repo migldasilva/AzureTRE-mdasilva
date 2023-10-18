@@ -29,7 +29,3 @@ variable "acr_name" {
   type        = string
   description = "Name of Azure Container Registry"
 }
-
-variable "arm_environment" {
-  type = string
-}

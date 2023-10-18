@@ -1,29 +1,23 @@
 .PHONY: bootstrap-init mgmt-deploy mgmt-destroy build-api-image push-api-image deploy-tre destroy-tre letsencrypt
-.DEFAULT_GOAL := help
 
 SHELL:=/bin/bash
 MAKEFILE_FULLPATH := $(abspath $(lastword $(MAKEFILE_LIST)))
 MAKEFILE_DIR := $(dir $(MAKEFILE_FULLPATH))
 IMAGE_NAME_PREFIX?="microsoft/azuretre"
-ACR_DOMAIN_SUFFIX?=`az cloud show --query suffixes.acrLoginServerEndpoint --output tsv`
-ACR_NAME?=`echo "$${ACR_NAME}" | tr A-Z a-z`
-ACR_FQDN?="${ACR_NAME}${ACR_DOMAIN_SUFFIX}"
-FULL_IMAGE_NAME_PREFIX:=${ACR_FQDN}/${IMAGE_NAME_PREFIX}
+FULL_CONTAINER_REGISTRY_NAME?="$${ACR_NAME}.azurecr.io"
+FULL_IMAGE_NAME_PREFIX:=`echo "${FULL_CONTAINER_REGISTRY_NAME}/${IMAGE_NAME_PREFIX}" | tr A-Z a-z`
 LINTER_REGEX_INCLUDE?=all # regular expression used to specify which files to include in local linting (defaults to "all")
 E2E_TESTS_NUMBER_PROCESSES_DEFAULT=4  # can be overridden in e2e_tests/.env
 
 target_title = @echo -e "\n\e[34m»»» 🧩 \e[96m$(1)\e[0m..."
 
-all: bootstrap mgmt-deploy images tre-deploy ## 🚀 Provision all the application resources from beginning to end
-tre-deploy: deploy-core build-and-deploy-ui firewall-install db-migrate show-core-output ## 🚀 Provision TRE using existing images
+all: bootstrap mgmt-deploy images tre-deploy
+tre-deploy: deploy-core build-and-deploy-ui firewall-install db-migrate show-core-output
 
-images: build-and-push-api build-and-push-resource-processor build-and-push-airlock-processor ## 📦 Build and push all images
+images: build-and-push-api build-and-push-resource-processor build-and-push-airlock-processor
 build-and-push-api: build-api-image push-api-image
 build-and-push-resource-processor: build-resource-processor-vm-porter-image push-resource-processor-vm-porter-image
 build-and-push-airlock-processor: build-airlock-processor push-airlock-processor
-
-help: ## 💬 This help message :)
-	@grep -E '[a-zA-Z_-]+:.*?## .*$$' $(firstword $(MAKEFILE_LIST)) | awk 'BEGIN {FS = ":.*?## "}; {printf "\033[36m%-25s\033[0m %s\n", $$1, $$2}'
 
 # to move your environment from the single 'core' deployment (which includes the firewall)
 # toward the shared services model, where it is split out - run the following make target before a tre-deploy
@@ -57,10 +51,10 @@ $(call target_title, "Building $(1) Image") \
 && . ${MAKEFILE_DIR}/devops/scripts/check_dependencies.sh env \
 && . ${MAKEFILE_DIR}/devops/scripts/set_docker_sock_permission.sh \
 && source <(grep = $(2) | sed 's/ *= */=/g') \
-&& az acr login -n ${ACR_NAME} \
+&& az acr login -n $${ACR_NAME} \
 && if [ -n "$${CI_CACHE_ACR_NAME:-}" ]; then \
 	az acr login -n $${CI_CACHE_ACR_NAME}; \
-	ci_cache="--cache-from $${CI_CACHE_ACR_NAME}${ACR_DOMAIN_SUFFIX}/${IMAGE_NAME_PREFIX}/$(1):$${__version__}"; fi \
+	ci_cache="--cache-from $${CI_CACHE_ACR_NAME}.azurecr.io/${IMAGE_NAME_PREFIX}/$(1):$${__version__}"; fi \
 && docker build -t ${FULL_IMAGE_NAME_PREFIX}/$(1):$${__version__} --build-arg BUILDKIT_INLINE_CACHE=1 \
 	--cache-from ${FULL_IMAGE_NAME_PREFIX}/$(1):$${__version__} $${ci_cache:-} -f $(3) $(4)
 endef
@@ -83,7 +77,7 @@ $(call target_title, "Pushing $(1) Image") \
 && . ${MAKEFILE_DIR}/devops/scripts/check_dependencies.sh env \
 && . ${MAKEFILE_DIR}/devops/scripts/set_docker_sock_permission.sh \
 && source <(grep = $(2) | sed 's/ *= */=/g') \
-&& az acr login -n ${ACR_NAME} \
+&& az acr login -n $${ACR_NAME} \
 && docker push "${FULL_IMAGE_NAME_PREFIX}/$(1):$${__version__}"
 endef
 
@@ -122,17 +116,17 @@ letsencrypt:
 	&& . ${MAKEFILE_DIR}/devops/scripts/load_env.sh ${MAKEFILE_DIR}/core/private.env \
 	&& ${MAKEFILE_DIR}/core/terraform/scripts/letsencrypt.sh
 
-tre-start: ## ⏩ Start the TRE Service
+tre-start:
 	$(call target_title, "Starting TRE") \
 	&& . ${MAKEFILE_DIR}/devops/scripts/check_dependencies.sh env \
 	&& ${MAKEFILE_DIR}/devops/scripts/control_tre.sh start
 
-tre-stop: ## ⛔ Stop the TRE Service
+tre-stop:
 	$(call target_title, "Stopping TRE") \
 	&& . ${MAKEFILE_DIR}/devops/scripts/check_dependencies.sh env \
 	&& ${MAKEFILE_DIR}/devops/scripts/control_tre.sh stop
 
-tre-destroy: ## 🧨 Destroy the TRE Service
+tre-destroy:
 	$(call target_title, "Destroying TRE") \
 	&& . ${MAKEFILE_DIR}/devops/scripts/check_dependencies.sh nodocker,env \
 	&& . ${MAKEFILE_DIR}/devops/scripts/destroy_env_no_terraform.sh
@@ -152,12 +146,10 @@ terraform-import:
 terraform-destroy:
 	$(call target_title, "Destroying ${DIR} Service") \
 	&& . ${MAKEFILE_DIR}/devops/scripts/check_dependencies.sh env \
-	&& . ${MAKEFILE_DIR}/devops/scripts/load_and_validate_env.sh \
-	&& . ${MAKEFILE_DIR}/devops/scripts/load_env.sh ${DIR}/.env \
 	&& cd ${DIR}/terraform/ && ./destroy.sh
 
 # This will validate all files, not only the changed ones as the CI version does.
-lint: ## 🧹 Lint all files
+lint:
 	$(call target_title, "Linting")
 	@terraform fmt -check -recursive -diff
 	@# LOG_LEVEL=NOTICE reduces noise but it might also seem like the process is stuck - it's not...
@@ -178,7 +170,7 @@ lint: ## 🧹 Lint all files
     -e VALIDATE_TYPESCRIPT_ES=true \
 		-e FILTER_REGEX_INCLUDE=${LINTER_REGEX_INCLUDE} \
 		-v $${LOCAL_WORKSPACE_FOLDER}:/tmp/lint \
-		github/super-linter:slim-v5.0.0
+		github/super-linter:slim-v4.10.0
 
 lint-docs:
 	LINTER_REGEX_INCLUDE='./docs/.*\|./mkdocs.yml' $(MAKE) lint
@@ -193,10 +185,10 @@ bundle-build:
 	&& if [ -d terraform ]; then terraform -chdir=terraform init -backend=false; terraform -chdir=terraform validate; fi \
 	&& FULL_IMAGE_NAME_PREFIX=${FULL_IMAGE_NAME_PREFIX} IMAGE_NAME_PREFIX=${IMAGE_NAME_PREFIX} \
 		${MAKEFILE_DIR}/devops/scripts/bundle_runtime_image_build.sh \
-	&& porter build \
-	  $(MAKE) bundle-check-params
+	&& porter build
+#	$(MAKE) bundle-check-params # TODO: uncomment when resolved https://github.com/microsoft/AzureTRE/issues/3146
 
-bundle-install: bundle-check-params
+bundle-install: # bundle-check-params # TODO: uncomment when resolved https://github.com/microsoft/AzureTRE/issues/3146
 	$(call target_title, "Deploying ${DIR} with Porter") \
 	&& . ${MAKEFILE_DIR}/devops/scripts/check_dependencies.sh porter,env \
 	&& . ${MAKEFILE_DIR}/devops/scripts/load_and_validate_env.sh \
@@ -206,7 +198,7 @@ bundle-install: bundle-check-params
 	&& porter credentials apply ${MAKEFILE_DIR}/resource_processor/vmss_porter/aad_auth_local_debugging.json \
 	&& porter credentials apply ${MAKEFILE_DIR}/resource_processor/vmss_porter/arm_auth_local_debugging.json \
 	&& . ${MAKEFILE_DIR}/devops/scripts/porter_local_env.sh \
-	&& porter install --autobuild-disabled --parameter-set $$(yq ".name" porter.yaml) \
+	&& porter install --parameter-set $$(yq ".name" porter.yaml) \
 		--credential-set arm_auth \
 		--credential-set aad_auth \
 		--debug
@@ -220,8 +212,22 @@ bundle-check-params:
 	&& cd ${DIR} \
 	&& if [ ! -f "parameters.json" ]; then echo "Error - please create a parameters.json file."; exit 1; fi \
 	&& if [ "$$(jq -r '.name' parameters.json)" != "$$(yq eval '.name' porter.yaml)" ]; then echo "Error - ParameterSet name isn't equal to bundle's name."; exit 1; fi \
-	&& if ! porter explain --autobuild-disabled > /dev/null; then echo "Error - porter explain issue!"; exit 1; fi \
-	&& comm_output=$$(set -o pipefail && comm -3 --output-delimiter=: <(porter explain --autobuild-disabled -ojson | jq -r '.parameters[].name | select (. != "arm_use_msi")' | sort) <(jq -r '.parameters[].name | select(. != "arm_use_msi")' parameters.json | sort)) \
+	&& if ! porter explain; then echo "Error - porter explain issue!"; exit 1; fi \
+	&& comm_output=$$(set -o pipefail && comm -3 --output-delimiter=: <(porter explain -ojson | jq -r '.parameters[].name | select (. != "arm_use_msi")' | sort) <(jq -r '.parameters[].name | select(. != "arm_use_msi")' parameters.json | sort)) \
+	&& if [ ! -z "$${comm_output}" ]; \
+		then echo -e "*** Add to params ***:*** Remove from params ***\n$$comm_output" | column -t -s ":"; exit 1; \
+		else echo "parameters.json file up-to-date."; fi
+
+# TODO: probably delete when resolved https://github.com/microsoft/AzureTRE/issues/3146
+bundle-check-params-remote:
+	$(call target_title, "Checking bundle parameters in ${DIR}") \
+	&& . ${MAKEFILE_DIR}/devops/scripts/check_dependencies.sh porter,env \
+	&& az acr login --name $${ACR_NAME}	\
+	&& cd ${DIR} \
+	&& if [ ! -f "parameters.json" ]; then echo "Error - please create a parameters.json file."; exit 1; fi \
+	&& if [ "$$(jq -r '.name' parameters.json)" != "$$(yq eval '.name' porter.yaml)" ]; then echo "Error - ParameterSet name isn't equal to bundle's name."; exit 1; fi \
+	&& bundle_remote_ref="$${ACR_NAME}.azurecr.io/$$(yq eval '.name' porter.yaml):v$$(yq eval '.version' porter.yaml)" \
+	&& comm_output=$$(set -o pipefail && comm -3 --output-delimiter=: <(porter explain --reference $${bundle_remote_ref} -ojson | jq -r '.parameters[].name | select (. != "arm_use_msi")' | sort) <(jq -r '.parameters[].name | select(. != "arm_use_msi")' parameters.json | sort)) \
 	&& if [ ! -z "$${comm_output}" ]; \
 		then echo -e "*** Add to params ***:*** Remove from params ***\n$$comm_output" | column -t -s ":"; exit 1; \
 		else echo "parameters.json file up-to-date."; fi
@@ -235,7 +241,7 @@ bundle-uninstall:
 	&& porter parameters apply parameters.json \
 	&& porter credentials apply ${MAKEFILE_DIR}/resource_processor/vmss_porter/aad_auth_local_debugging.json \
 	&& porter credentials apply ${MAKEFILE_DIR}/resource_processor/vmss_porter/arm_auth_local_debugging.json \
-	&& porter uninstall --autobuild-disabled --parameter-set $$(yq ".name" porter.yaml) \
+	&& porter uninstall --parameter-set $$(yq ".name" porter.yaml) \
 		--credential-set arm_auth \
 		--credential-set aad_auth \
 		--debug
@@ -249,7 +255,7 @@ bundle-custom-action:
 	&& porter parameters apply parameters.json \
 	&& porter credentials apply ${MAKEFILE_DIR}/resource_processor/vmss_porter/aad_auth_local_debugging.json \
 	&& porter credentials apply ${MAKEFILE_DIR}/resource_processor/vmss_porter/arm_auth_local_debugging.json \
- 	&& porter invoke --autobuild-disabled --action ${ACTION} --parameter-set $$(yq ".name" porter.yaml) \
+ 	&& porter invoke --action ${ACTION} --parameter-set $$(yq ".name" porter.yaml) \
 		--credential-set arm_auth \
 		--credential-set aad_auth \
 		--debug
@@ -258,20 +264,21 @@ bundle-publish:
 	$(call target_title, "Publishing ${DIR} bundle with Porter") \
 	&& . ${MAKEFILE_DIR}/devops/scripts/check_dependencies.sh porter,env \
 	&& . ${MAKEFILE_DIR}/devops/scripts/set_docker_sock_permission.sh \
-	&& az acr login --name ${ACR_NAME}	\
+	&& az acr login --name $${ACR_NAME}	\
 	&& cd ${DIR} \
 	&& FULL_IMAGE_NAME_PREFIX=${FULL_IMAGE_NAME_PREFIX} \
 		${MAKEFILE_DIR}/devops/scripts/bundle_runtime_image_push.sh \
-	&& porter publish --registry "${ACR_FQDN}" --force
+	&& porter publish --registry "$${ACR_NAME}.azurecr.io" --force
 
-bundle-register:
+# TODO: delete bundle-check-params-remote prestep when resolved https://github.com/microsoft/AzureTRE/issues/3146
+bundle-register: bundle-check-params-remote
+	@# NOTE: ACR_NAME below comes from the env files, so needs the double '$$'. Others are set on command execution and don't
 	$(call target_title, "Registering ${DIR} bundle") \
 	&& . ${MAKEFILE_DIR}/devops/scripts/check_dependencies.sh porter,env \
-	&& . ${MAKEFILE_DIR}/devops/scripts/set_docker_sock_permission.sh \
-	&& az acr login --name ${ACR_NAME}	\
-	&& ${MAKEFILE_DIR}/devops/scripts/ensure_cli_signed_in.sh $${TRE_URL} \
+	&& az acr login --name $${ACR_NAME}	\
+	&& ${MAKEFILE_DIR}/devops/scripts/ensure_cli_signed_in.sh TRE_URL="$${TRE_URL:-https://$${TRE_ID}.$${LOCATION}.cloudapp.azure.com}" \
 	&& cd ${DIR} \
-	&& ${MAKEFILE_DIR}/devops/scripts/register_bundle_with_api.sh --acr-name "${ACR_NAME}" --bundle-type "$${BUNDLE_TYPE}" \
+	&& ${MAKEFILE_DIR}/devops/scripts/register_bundle_with_api.sh --acr-name "$${ACR_NAME}" --bundle-type "$${BUNDLE_TYPE}" \
 		--current --verify \
 		--workspace-service-name "$${WORKSPACE_SERVICE_NAME}"
 
@@ -295,9 +302,10 @@ bundle-publish-register-all:
 	${MAKEFILE_DIR}/devops/scripts/publish_and_register_all_bundles.sh
 
 deploy-shared-service:
+	@# NOTE: ACR_NAME below comes from the env files, so needs the double '$$'. Others are set on command execution and don't
 	$(call target_title, "Deploying ${DIR} shared service") \
 	&& . ${MAKEFILE_DIR}/devops/scripts/check_dependencies.sh porter,env \
-	&& ${MAKEFILE_DIR}/devops/scripts/ensure_cli_signed_in.sh $${TRE_URL} \
+	&& ${MAKEFILE_DIR}/devops/scripts/ensure_cli_signed_in.sh TRE_URL="$${TRE_URL:-https://$${TRE_ID}.$${LOCATION}.cloudapp.azure.com}" \
 	&& cd ${DIR} \
 	&& ${MAKEFILE_DIR}/devops/scripts/deploy_shared_service.sh $${PROPS}
 
@@ -326,23 +334,23 @@ prepare-for-e2e:
 	$(MAKE) user_resource_bundle WORKSPACE_SERVICE=guacamole BUNDLE=guacamole-azure-windowsvm
 	$(MAKE) user_resource_bundle WORKSPACE_SERVICE=guacamole BUNDLE=guacamole-azure-linuxvm
 
-test-e2e-smoke:	## 🧪 Run E2E smoke tests
+test-e2e-smoke:
 	$(call target_title, "Running E2E smoke tests") && \
 	$(MAKE) test-e2e-custom SELECTOR=smoke
 
-test-e2e-extended: ## 🧪 Run E2E extended tests
+test-e2e-extended:
 	$(call target_title, "Running E2E extended tests") && \
 	$(MAKE) test-e2e-custom SELECTOR=extended
 
-test-e2e-extended-aad: ## 🧪 Run E2E extended AAD tests
+test-e2e-extended-aad:
 	$(call target_title, "Running E2E extended AAD tests") && \
 	$(MAKE) test-e2e-custom SELECTOR=extended_aad
 
-test-e2e-shared-services: ## 🧪 Run E2E shared service tests
+test-e2e-shared-services:
 	$(call target_title, "Running E2E shared service tests") && \
 	$(MAKE) test-e2e-custom SELECTOR=shared_services
 
-test-e2e-custom: ## 🧪 Run E2E tests with custom selector (SELECTOR=)
+test-e2e-custom:
 	$(call target_title, "Running E2E tests with custom selector ${SELECTOR}") \
 	&& . ${MAKEFILE_DIR}/devops/scripts/check_dependencies.sh env,auth \
 	&& . ${MAKEFILE_DIR}/devops/scripts/load_env.sh ${MAKEFILE_DIR}/e2e_tests/.env \
@@ -355,21 +363,20 @@ test-e2e-custom: ## 🧪 Run E2E tests with custom selector (SELECTOR=)
 		else \
 			python -m pytest -n "${E2E_TESTS_NUMBER_PROCESSES_DEFAULT}" -m "${SELECTOR}" --verify $${IS_API_SECURED:-true} --junit-xml "pytest_e2e_$${SELECTOR// /_}.xml"; fi
 
-setup-local-debugging: ## 🛠️ Setup local debugging
+setup-local-debugging:
 	$(call target_title,"Setting up the ability to debug the API and Resource Processor") \
 	&& . ${MAKEFILE_DIR}/devops/scripts/check_dependencies.sh nodocker,env \
 	&& pushd ${MAKEFILE_DIR}/core/terraform/ > /dev/null && . ./outputs.sh && popd > /dev/null \
 	&& . ${MAKEFILE_DIR}/devops/scripts/load_env.sh ${MAKEFILE_DIR}/core/private.env \
 	&& . ${MAKEFILE_DIR}/devops/scripts/setup_local_debugging.sh
 
-auth: ## 🔐 Create the necessary Azure Active Directory assets
+auth:
 	$(call target_title,"Setting up Azure Active Directory") \
 	&& . ${MAKEFILE_DIR}/devops/scripts/check_dependencies.sh nodocker,env \
 	&& ${MAKEFILE_DIR}/devops/scripts/create_aad_assets.sh
 
 show-core-output:
 	$(call target_title,"Display TRE core output") \
-	&& . ${MAKEFILE_DIR}/devops/scripts/check_dependencies.sh env \
 	&& pushd ${MAKEFILE_DIR}/core/terraform/ > /dev/null && terraform show && popd > /dev/null
 
 api-healthcheck:
@@ -378,10 +385,10 @@ api-healthcheck:
 	&& . ${MAKEFILE_DIR}/devops/scripts/load_env.sh ${MAKEFILE_DIR}/core/private.env \
 	&& ${MAKEFILE_DIR}/devops/scripts/api_healthcheck.sh
 
-db-migrate: api-healthcheck ## 🗄️ Run database migrations
+db-migrate: api-healthcheck
 	$(call target_title,"Migrating Cosmos Data") \
 	&& . ${MAKEFILE_DIR}/devops/scripts/check_dependencies.sh nodocker,env \
 	&& pushd ${MAKEFILE_DIR}/core/terraform/ > /dev/null && . ./outputs.sh && popd > /dev/null \
 	&& . ${MAKEFILE_DIR}/devops/scripts/load_env.sh ${MAKEFILE_DIR}/core/private.env \
 	&& . ${MAKEFILE_DIR}/devops/scripts/get_access_token.sh \
-	&& . ${MAKEFILE_DIR}/devops/scripts/migrate_state_store.sh --tre_url $${TRE_URL} --insecure
+	&& . ${MAKEFILE_DIR}/devops/scripts/migrate_state_store.sh --tre_url "$${TRE_URL:-https://$${TRE_ID}.$${LOCATION}.cloudapp.azure.com}" --insecure

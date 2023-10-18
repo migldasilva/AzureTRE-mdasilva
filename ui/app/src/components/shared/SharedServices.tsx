@@ -55,7 +55,7 @@ export const SharedServices: React.FunctionComponent<SharedServiceProps> = (prop
             <h1>Shared Services</h1>
             {
               !props.readonly &&
-              <SecuredByRole allowedAppRoles={[RoleName.TREAdmin]}  element={
+              <SecuredByRole allowedRoles={[RoleName.TREAdmin]} workspaceAuth={false} element={
                 <PrimaryButton iconProps={{ iconName: 'Add' }} text="Create new" onClick={() => {
                   createFormCtx.openCreateForm({
                     resourceType: ResourceType.SharedService,

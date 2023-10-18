@@ -50,7 +50,7 @@ resource "azurerm_private_endpoint" "mysql_private_endpoint" {
   }
 
   private_dns_zone_group {
-    name                 = module.terraform_azurerm_environment_configuration.private_links["privatelink.mysql.database.azure.com"]
+    name                 = "privatelink.mysql.database.azure.com"
     private_dns_zone_ids = [data.azurerm_private_dns_zone.mysql.id]
   }
 
@@ -62,6 +62,4 @@ resource "azurerm_key_vault_secret" "db_password" {
   value        = random_password.password.result
   key_vault_id = data.azurerm_key_vault.ws.id
   tags         = local.workspace_service_tags
-
-  lifecycle { ignore_changes = [tags] }
 }
